@@ -204,6 +204,7 @@ CPI_SERIES = MACRO_SERIES
 
 def fetch_cpi_data(period: str) -> tuple[pd.DataFrame | None, str | None]:
     """FRED API からマクロ経済指標を取得。(DataFrame, error_message) を返す"""
+    FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
     if not FRED_API_KEY:
         return None, (
             "マクロ経済指標の取得にはFREDのAPIキーが必要です。\n"

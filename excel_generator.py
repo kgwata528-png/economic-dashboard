@@ -110,8 +110,11 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
     cpi_aligned = None
     cpi_cols = []
     if cpi_df is not None and not cpi_df.empty:
-        cpi_df.index = pd.to_datetime(cpi_df.index)
-        cpi_aligned = cpi_df.reindex(df.index, method="ffill")
+        cpi_df = cpi_df.copy()
+        cpi_df.index = pd.to_datetime(cpi_df.index).tz_localize(None)
+        df.index = pd.to_datetime(df.index).tz_localize(None) if df.index.tz is not None else pd.to_datetime(df.index)
+        combined_idx = cpi_df.index.union(df.index).sort_values()
+        cpi_aligned = cpi_df.reindex(combined_idx).ffill().reindex(df.index)
         cpi_cols = cpi_aligned.columns.tolist()
 
     cols = df.columns.tolist()

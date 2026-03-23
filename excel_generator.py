@@ -100,13 +100,22 @@ def _note_row(ws, row, col_span, text):
 # ====================================================
 # シート1: 時系列データ
 # ====================================================
-def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str):
+def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str,
+                      cpi_df: pd.DataFrame | None = None):
     ws = wb.active
     ws.title = "時系列データ"
     ws.sheet_properties.tabColor = C["header_mid"]
 
+    # CPIデータを市場データの日付に合わせてforward-fill
+    cpi_aligned = None
+    cpi_cols = []
+    if cpi_df is not None and not cpi_df.empty:
+        cpi_df.index = pd.to_datetime(cpi_df.index)
+        cpi_aligned = cpi_df.reindex(df.index, method="ffill")
+        cpi_cols = cpi_aligned.columns.tolist()
+
     cols = df.columns.tolist()
-    n_cols = len(cols) + 1  # +1 for date
+    n_cols = len(cols) + len(cpi_cols) + 1  # +1 for date
 
     period_str   = PERIOD_LABEL.get(period, period)
     interval_str = INTERVAL_LABEL.get(interval, interval)
@@ -120,12 +129,16 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
                f"経済指標 時系列データ｜{period_str}・{interval_str}｜{date_range}",
                bg=C["header_dark"])
     _note_row(ws, 2, n_cols,
-              "出典: Yahoo Finance（yfinance） ／ 土日・祝日は市場休場のため欠損あり")
+              "出典: Yahoo Finance（yfinance） ／ FRED（マクロ指標は月次・前年同月比） ／ 土日・祝日は市場休場のため欠損あり")
 
     # ヘッダー行
     _write_header(ws.cell(row=3, column=1), "日付", bg=C["header_dark"])
     for ci, col in enumerate(cols, 2):
         _write_header(ws.cell(row=3, column=ci), col, bg=C["header_mid"])
+    # CPIヘッダー（緑色で区別）
+    cpi_start_col = len(cols) + 2
+    for ci, col in enumerate(cpi_cols, cpi_start_col):
+        _write_header(ws.cell(row=3, column=ci), col, bg=C["header_green"])
     ws.row_dimensions[3].height = 24
 
     # データ行
@@ -141,12 +154,23 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
             else:
                 _write_data(ws.cell(row=ri, column=ci), round(float(val), 4),
                             bg=bg, num_fmt="#,##0.0000")
+
+        # CPIデータ列
+        if cpi_aligned is not None:
+            for ci, col in enumerate(cpi_cols, cpi_start_col):
+                val = cpi_aligned.loc[idx, col] if idx in cpi_aligned.index else None
+                if val is None or pd.isna(val):
+                    _write_data(ws.cell(row=ri, column=ci), "―", bg=bg)
+                else:
+                    _write_data(ws.cell(row=ri, column=ci), round(float(val), 2),
+                                bg=bg, num_fmt="#,##0.00")
+
         ws.row_dimensions[ri].height = 17
 
     # 列幅
     ws.column_dimensions["A"].width = 13
     for ci in range(2, n_cols + 1):
-        ws.column_dimensions[get_column_letter(ci)].width = 16
+        ws.column_dimensions[get_column_letter(ci)].width = 18
 
     ws.freeze_panes = "A4"
     ws.auto_filter.ref = ws.cell(row=3, column=1).coordinate + ":" + \
@@ -417,7 +441,7 @@ def generate_excel(
         wb.save(buf)
         return buf.getvalue()
 
-    _sheet_timeseries(wb, market_df, period, interval)
+    _sheet_timeseries(wb, market_df, period, interval, cpi_df)
     _sheet_returns(wb, market_df, interval)
     _sheet_stats(wb, market_df, period, interval)
 

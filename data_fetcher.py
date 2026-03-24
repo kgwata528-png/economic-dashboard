@@ -141,7 +141,8 @@ def get_current_prices() -> dict:
 # ====================================================
 # 時系列データ取得
 # ====================================================
-def fetch_market_data(selected_names: list[str], period: str, interval: str) -> pd.DataFrame:
+def fetch_market_data(selected_names: list[str], interval: str = "1d",
+                      start_date: str = None, end_date: str = None) -> pd.DataFrame:
     """選択された指標の時系列データを取得して結合DataFrameを返す"""
     tickers = {name: TICKER_MAP[name] for name in selected_names if name in TICKER_MAP}
     if not tickers:
@@ -150,16 +151,12 @@ def fetch_market_data(selected_names: list[str], period: str, interval: str) -> 
     ticker_list = list(tickers.values())
     name_by_ticker = {v: k for k, v in tickers.items()}
 
-    # yfinance非対応の期間はstart/endで指定
-    _period_days = {"3mo": 90, "6mo": 180, "1y": 365, "3y": 1095, "5y": 1825, "10y": 3650}
     yf_kwargs: dict = {"interval": interval, "auto_adjust": True, "progress": False}
-    if period == "max":
-        yf_kwargs["period"] = "max"
-    elif period in ("3y", "10y"):
-        yf_kwargs["start"] = (datetime.now() - timedelta(days=_period_days[period])).strftime("%Y-%m-%d")
-        yf_kwargs["end"]   = datetime.now().strftime("%Y-%m-%d")
+    if start_date and end_date:
+        yf_kwargs["start"] = start_date
+        yf_kwargs["end"]   = end_date
     else:
-        yf_kwargs["period"] = period
+        yf_kwargs["period"] = "1y"
 
     try:
         raw = yf.download(ticker_list, **yf_kwargs)
@@ -210,7 +207,7 @@ MACRO_SERIES: dict[str, dict] = {
 CPI_SERIES = MACRO_SERIES
 
 
-def fetch_cpi_data(period: str) -> tuple[pd.DataFrame | None, str | None]:
+def fetch_cpi_data(start_date: str = None, end_date: str = None) -> tuple[pd.DataFrame | None, str | None]:
     """FRED API からマクロ経済指標を取得。(DataFrame, error_message) を返す"""
     FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
     if not FRED_API_KEY:
@@ -220,14 +217,13 @@ def fetch_cpi_data(period: str) -> tuple[pd.DataFrame | None, str | None]:
             "data_fetcher.py の FRED_API_KEY に設定してください。"
         )
 
-    period_map = {"3mo": 3, "6mo": 6, "1y": 12, "3y": 36, "5y": 60, "10y": 120, "max": 900}
-    months_back = period_map.get(period, 12)
-    # yoy 変換のため取得期間を1年余分に確保（maxの場合は1960年から）
-    if period == "max":
-        start = "1960-01-01"
+    # yoy変換のため開始日を1年前倒し
+    if start_date:
+        s = datetime.strptime(start_date, "%Y-%m-%d")
+        start = (s - timedelta(days=366)).strftime("%Y-%m-%d")
     else:
-        start = (datetime.now() - timedelta(days=(months_back + 14) * 31)).strftime("%Y-%m-%d")
-    end   = datetime.now().strftime("%Y-%m-%d")
+        start = (datetime.now() - timedelta(days=366*2)).strftime("%Y-%m-%d")
+    end = end_date or datetime.now().strftime("%Y-%m-%d")
 
     frames = []
     for col_name, meta in MACRO_SERIES.items():
@@ -269,7 +265,7 @@ def fetch_cpi_data(period: str) -> tuple[pd.DataFrame | None, str | None]:
     for f in frames[1:]:
         result = result.join(f, how="outer")
 
-    # 期間フィルタ（余分な1年分を除去）
-    cutoff = (datetime.now() - timedelta(days=months_back * 31)).strftime("%Y-%m-%d")
+    # 余分な1年分を除去
+    cutoff = start_date or (datetime.now() - timedelta(days=366)).strftime("%Y-%m-%d")
     result = result[result.index >= cutoff].dropna(how="all")
     return result, None

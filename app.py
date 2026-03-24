@@ -44,29 +44,28 @@ def api_current():
 def api_download():
     """選択された指標・期間・足種でExcelを生成してダウンロード"""
     body = request.get_json(force=True)
-    selected  = body.get("selected", list(TICKER_MAP.keys()))  # 未選択なら全指標
-    period    = body.get("period",   "1y")
-    interval  = body.get("interval", "1d")
-    want_cpi  = body.get("include_cpi", True)
+    selected   = body.get("selected", list(TICKER_MAP.keys()))
+    interval   = body.get("interval", "1d")
+    want_cpi   = body.get("include_cpi", True)
+    start_date = body.get("start_date")
+    end_date   = body.get("end_date")
 
     # 市場データ取得
-    market_df = fetch_market_data(selected, period, interval)
+    market_df = fetch_market_data(selected, interval=interval,
+                                  start_date=start_date, end_date=end_date)
 
     # CPI取得
     cpi_df = None
     if want_cpi:
-        cpi_df, cpi_err = fetch_cpi_data(period)
+        cpi_df, cpi_err = fetch_cpi_data(start_date=start_date, end_date=end_date)
         if cpi_err:
             app.logger.warning(f"CPI取得スキップ: {cpi_err}")
 
-    excel_bytes = generate_excel(market_df, cpi_df, period, interval)
+    excel_bytes = generate_excel(market_df, cpi_df, f"{start_date}〜{end_date}", interval)
 
     interval_label = {"1d": "日足", "1wk": "週足", "1mo": "月足"}.get(interval, interval)
-    period_label   = {
-        "3mo": "3M", "6mo": "6M", "1y": "1Y",
-        "3y": "3Y",  "5y": "5Y",  "10y": "10Y",
-    }.get(period, period)
-    filename = f"economic_data_{period_label}_{interval_label}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    date_label = f"{(start_date or '').replace('-','')}_{(end_date or '').replace('-','')}"
+    filename = f"economic_data_{date_label}_{interval_label}_{datetime.now().strftime('%Y%m%d')}.xlsx"
 
     return send_file(
         io.BytesIO(excel_bytes),

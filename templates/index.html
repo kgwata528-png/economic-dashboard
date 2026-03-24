@@ -158,6 +158,12 @@
     transition: background .12s, border-color .12s;
     user-select: none;
   }
+  .data-from {
+    font-size: .68rem;
+    color: #90A4AE;
+    margin-left: 2px;
+    font-weight: 400;
+  }
   .indicator-checks label:hover,
   .indicator-checks input:checked + span { }
   .indicator-checks input:checked ~ * { font-weight: 600; }
@@ -366,10 +372,10 @@
             <div class="indicator-group">
               <div class="group-name">{{ category }}</div>
               <div class="indicator-checks">
-                {% for name in items.keys() %}
-                <label>
+                {% for name, info in items.items() %}
+                <label title="{{ info.get('data_from', '') }}">
                   <input type="checkbox" name="indicator" value="{{ name }}" checked>
-                  {{ name }}
+                  {{ name }}<span class="data-from">{{ info.get('data_from', '') }}</span>
                 </label>
                 {% endfor %}
               </div>

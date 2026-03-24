@@ -150,11 +150,19 @@ def fetch_market_data(selected_names: list[str], period: str, interval: str) -> 
     ticker_list = list(tickers.values())
     name_by_ticker = {v: k for k, v in tickers.items()}
 
+    # yfinance非対応の期間はstart/endで指定
+    _period_days = {"3mo": 90, "6mo": 180, "1y": 365, "3y": 1095, "5y": 1825, "10y": 3650}
+    yf_kwargs: dict = {"interval": interval, "auto_adjust": True, "progress": False}
+    if period == "max":
+        yf_kwargs["period"] = "max"
+    elif period in ("3y", "10y"):
+        yf_kwargs["start"] = (datetime.now() - timedelta(days=_period_days[period])).strftime("%Y-%m-%d")
+        yf_kwargs["end"]   = datetime.now().strftime("%Y-%m-%d")
+    else:
+        yf_kwargs["period"] = period
+
     try:
-        raw = yf.download(
-            ticker_list, period=period, interval=interval,
-            auto_adjust=True, progress=False
-        )
+        raw = yf.download(ticker_list, **yf_kwargs)
         if raw.empty:
             return pd.DataFrame()
 

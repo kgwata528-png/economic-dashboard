@@ -613,24 +613,26 @@ function setDateRange(startDate, endDate) {
   document.getElementById("endDate").value   = toDateStr(endDate);
 }
 
-// ショートカットボタン
+// ショートカットボタン（終了日は変えず、開始日だけ変更）
 document.querySelectorAll(".period-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
 
-    const today = new Date();
-    const end   = new Date(today);
-    let start   = new Date(today);
+    // 終了日は現在の値を保持（未設定なら今日）
+    const endVal = document.getElementById("endDate").value;
+    const end    = endVal ? new Date(endVal) : new Date();
+    let start    = new Date(end);
 
     if (btn.dataset.max) {
-      start = new Date("1980-01-01");
+      start = new Date("1927-01-01");
     } else if (btn.dataset.years) {
       start.setFullYear(start.getFullYear() - parseInt(btn.dataset.years));
     } else if (btn.dataset.months) {
       start.setMonth(start.getMonth() - parseInt(btn.dataset.months));
     }
-    setDateRange(start, end);
+    document.getElementById("startDate").value = toDateStr(start);
+    // 終了日は変更しない
   });
 });
 

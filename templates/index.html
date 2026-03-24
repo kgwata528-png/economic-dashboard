@@ -273,6 +273,18 @@
   .btn-download:hover   { background: #1565C0; transform: translateY(-1px); }
   .btn-download:active  { transform: translateY(0); }
   .btn-download:disabled { background: #90A4AE; cursor: not-allowed; transform: none; }
+  .btn-cancel {
+    background: #e53935;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-cancel:hover { background: #b71c1c; }
 
   .dl-status {
     font-size: .85rem;
@@ -444,6 +456,9 @@
         <button class="btn-download" id="dlBtn" onclick="downloadExcel()">
           ⬇ Excel ダウンロード
         </button>
+        <button class="btn-cancel" id="cancelBtn" onclick="cancelDownload()" style="display:none;">
+          ✕ キャンセル
+        </button>
         <div>
           <div class="dl-status" id="dlStatus"></div>
           <div class="progress-bar" id="progressBar"><div class="progress-fill"></div></div>
@@ -546,6 +561,15 @@ function checkAll(checked) {
 // ====================================================
 // Excel ダウンロード
 // ====================================================
+let _abortController = null;
+
+function cancelDownload() {
+  if (_abortController) {
+    _abortController.abort();
+    _abortController = null;
+  }
+}
+
 async function downloadExcel() {
   const selected = [...document.querySelectorAll('input[name="indicator"]:checked')]
     .map(cb => cb.value);
@@ -565,16 +589,21 @@ async function downloadExcel() {
     return;
   }
 
-  const btn = document.getElementById("dlBtn");
-  btn.disabled = true;
+  const btn       = document.getElementById("dlBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  btn.disabled    = true;
+  cancelBtn.style.display = "inline-block";
   setStatus("loading", "データ取得中... しばらくお待ちください");
   document.getElementById("progressBar").classList.add("active");
+
+  _abortController = new AbortController();
 
   try {
     const res = await fetch("/api/download", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ selected, start_date: startDate, end_date: endDate, interval, include_cpi: includeCpi }),
+      signal:  _abortController.signal,
     });
 
     if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
@@ -583,7 +612,7 @@ async function downloadExcel() {
     const url      = URL.createObjectURL(blob);
     const a        = document.createElement("a");
     const filename = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/)?.[1]
-                     || "economic_data.xlsx";
+                     || "econ_data.xlsx";
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
@@ -591,9 +620,15 @@ async function downloadExcel() {
 
     setStatus("success", `✅ ダウンロード完了（${selected.length}指標）`);
   } catch (e) {
-    setStatus("error", `❌ エラー: ${e.message}`);
+    if (e.name === "AbortError") {
+      setStatus("error", "⛔ キャンセルしました");
+    } else {
+      setStatus("error", `❌ エラー: ${e.message}`);
+    }
   } finally {
     btn.disabled = false;
+    cancelBtn.style.display = "none";
+    _abortController = null;
     document.getElementById("progressBar").classList.remove("active");
   }
 }

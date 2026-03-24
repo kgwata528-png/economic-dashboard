@@ -336,7 +336,7 @@ def _sheet_correlation(wb: Workbook, df: pd.DataFrame):
     _write_header(ws.cell(row=3, column=1), "", bg=C["header_dark"])
     for ci, col in enumerate(cols, 2):
         _write_header(ws.cell(row=3, column=ci), col, bg=C["header_purple"])
-        _write_header(ws.cell(row=ci + 1, column=1), col, bg=C["header_purple"])
+        _write_header(ws.cell(row=ci + 2, column=1), col, bg=C["header_purple"])
     ws.row_dimensions[3].height = 24
 
     for ri, row_col in enumerate(cols, 4):

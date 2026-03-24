@@ -117,6 +117,9 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
         cpi_aligned = cpi_df.reindex(combined_idx).ffill().reindex(df.index)
         cpi_cols = cpi_aligned.columns.tolist()
 
+    # 欠損値を前の値で補完（土日・祝日・データなし日を前営業日の値で埋める）
+    df = df.ffill()
+
     cols = df.columns.tolist()
     n_cols = len(cols) + len(cpi_cols) + 1  # +1 for date
 

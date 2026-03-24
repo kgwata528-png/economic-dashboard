@@ -63,10 +63,10 @@ def api_download():
 
     excel_bytes = generate_excel(market_df, cpi_df, f"{start_date}〜{end_date}", interval)
 
-    interval_label = {"1d": "日足", "1wk": "週足", "1mo": "月足"}.get(interval, interval)
+    interval_label = {"1d": "daily", "1wk": "weekly", "1mo": "monthly"}.get(interval, interval)
     s = (start_date or "").replace("-", "")[2:]  # 250101
     e = (end_date   or "").replace("-", "")[2:]  # 260101
-    filename = f"経済指標_{s}-{e}_{interval_label}.xlsx"
+    filename = f"econ_{s}-{e}_{interval_label}.xlsx"
 
     return send_file(
         io.BytesIO(excel_bytes),

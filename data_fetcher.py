@@ -212,10 +212,13 @@ def fetch_cpi_data(period: str) -> tuple[pd.DataFrame | None, str | None]:
             "data_fetcher.py の FRED_API_KEY に設定してください。"
         )
 
-    period_map = {"3mo": 3, "6mo": 6, "1y": 12, "3y": 36, "5y": 60, "10y": 120}
+    period_map = {"3mo": 3, "6mo": 6, "1y": 12, "3y": 36, "5y": 60, "10y": 120, "max": 900}
     months_back = period_map.get(period, 12)
-    # yoy 変換のため取得期間を1年余分に確保
-    start = (datetime.now() - timedelta(days=(months_back + 14) * 31)).strftime("%Y-%m-%d")
+    # yoy 変換のため取得期間を1年余分に確保（maxの場合は1960年から）
+    if period == "max":
+        start = "1960-01-01"
+    else:
+        start = (datetime.now() - timedelta(days=(months_back + 14) * 31)).strftime("%Y-%m-%d")
     end   = datetime.now().strftime("%Y-%m-%d")
 
     frames = []

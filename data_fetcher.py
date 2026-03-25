@@ -201,6 +201,16 @@ MACRO_SERIES: dict[str, dict] = {
     "米NFP 雇用者数変化(千人)":    {"id": "PAYEMS",          "transform": "mom_diff"},
     # ── 景気 ─────────────────────────────────────────
     "米GDP成長率 前期比年率(%)":   {"id": "A191RL1Q225SBEA", "transform": "level"},
+  # ── 米国金融政策 ─────────────────────────────────
+    "米FF金利(%)":                       {"id": "FEDFUNDS",         "transform": "level"},
+    # ── 米国景気・消費 ───────────────────────────────
+    "米鉱工業生産 前年比(%)":            {"id": "INDPRO",           "transform": "yoy_pct"},
+    "米小売売上高 前年比(%)":            {"id": "RSAFS",            "transform": "yoy_pct"},
+    "米消費者信頼感 ミシガン大(pt)":     {"id": "UMCSENT",          "transform": "level"},
+    "米住宅着工件数(千戸)":              {"id": "HOUST",            "transform": "level"},
+    # ── 日本経済 ─────────────────────────────────────
+    "日本失業率(%)":                     {"id": "LRUNTTTTJPM156S",  "transform": "level"},
+    "日本鉱工業生産 前年比(%)":          {"id": "JPNPROINDMISMEI",  "transform": "yoy_pct"},
 }
 
 # 後方互換（excel_generator 等から参照される場合に備え alias を残す）
@@ -268,4 +278,105 @@ def fetch_cpi_data(start_date: str = None, end_date: str = None) -> tuple[pd.Dat
     # 余分な1年分を除去
     cutoff = start_date or (datetime.now() - timedelta(days=366)).strftime("%Y-%m-%d")
     result = result[result.index >= cutoff].dropna(how="all")
+    return result, None
+
+# ====================================================
+# 日銀短観データ取得（BOJ公式フラットファイル）
+# ZIP: https://www.stat-search.boj.or.jp/info/co.zip
+# ====================================================
+# 系列コード: TK99[計算][業種4桁][項目3桁][種別][頻度2桁][実績][規模][明細3桁]
+TANKAN_SERIES = {
+    "短観 大企業製造業 業況DI":     "TK99F1000601GCQ01000",
+    "短観 大企業非製造業 業況DI":   "TK99F2000601GCQ01000",
+    "短観 中堅企業製造業 業況DI":   "TK99F1000601GCQ02000",
+    "短観 中小企業製造業 業況DI":   "TK99F1000601GCQ03000",
+    "短観 中小企業非製造業 業況DI": "TK99F2000601GCQ03000",
+}
+
+_tankan_cache: dict = {}
+_tankan_cache_ts: dict[str, float] = {}
+TANKAN_CACHE_TTL = 3600 * 6  # 6時間キャッシュ（短観は四半期発表）
+
+def fetch_tankan_data(start_date: str = None, end_date: str = None) -> tuple[pd.DataFrame | None, str | None]:
+    """
+    日銀短観（企業短期経済観測調査）の業況判断DIを取得。
+    BOJ公式フラットファイル（co.zip → co.csv）をダウンロードしてパース。
+    四半期データ（3月・6月・9月・12月調査）。
+    """
+    import io, zipfile
+
+    cache_key = f"{start_date}_{end_date}"
+    if cache_key in _tankan_cache and (time.time() - _tankan_cache_ts.get(cache_key, 0)) < TANKAN_CACHE_TTL:
+        return _tankan_cache[cache_key], None
+
+    try:
+        resp = requests.get(
+            "https://www.stat-search.boj.or.jp/info/co.zip",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+    except Exception as e:
+        return None, f"日銀短観ZIPダウンロード失敗: {e}"
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+            with zf.open("co.csv") as f:
+                df_all = pd.read_csv(
+                    f,
+                    header=None,
+                    names=["code", "freq", "period", "value"],
+                    encoding="utf-8",
+                    dtype=str,
+                )
+    except Exception as e:
+        return None, f"日銀短観CSVパース失敗: {e}"
+
+    # 対象系列のみ抽出（四半期）
+    target_codes = set(TANKAN_SERIES.values())
+    df_all = df_all[(df_all["code"].isin(target_codes)) & (df_all["freq"] == "Q")].copy()
+
+    if df_all.empty:
+        return None, "短観データが見つかりません（系列コードを確認してください）"
+
+    df_all["value"] = pd.to_numeric(df_all["value"], errors="coerce")
+
+    # 期間をdatetimeに変換（YYYYQQ → 四半期末月末日）
+    def period_to_date(p: str):
+        try:
+            year  = int(p[:4])
+            q     = int(p[4:6])  # 01=Q1, 02=Q2, 03=Q3, 04=Q4
+            month = q * 3        # 3, 6, 9, 12
+            return pd.Timestamp(year=year, month=month, day=1) + pd.offsets.MonthEnd(0)
+        except Exception:
+            return pd.NaT
+
+    df_all["date"] = df_all["period"].apply(period_to_date)
+    df_all = df_all.dropna(subset=["date", "value"])
+
+    # 系列コード → 日本語名
+    code_to_name = {v: k for k, v in TANKAN_SERIES.items()}
+    df_all["series_name"] = df_all["code"].map(code_to_name)
+
+    # ピボット（日付 × 系列名）
+    result = df_all.pivot_table(
+        index="date", columns="series_name", values="value", aggfunc="first"
+    )
+    result.index.name = "日付"
+
+    # 列を定義順に並べ替え
+    ordered_cols = [c for c in TANKAN_SERIES.keys() if c in result.columns]
+    result = result[ordered_cols]
+
+    # 日付フィルタ
+    if start_date:
+        result = result[result.index >= pd.Timestamp(start_date)]
+    if end_date:
+        result = result[result.index <= pd.Timestamp(end_date)]
+
+    result = result.sort_index().dropna(how="all")
+
+    _tankan_cache[cache_key]    = result
+    _tankan_cache_ts[cache_key] = time.time()
+
     return result, None

@@ -124,10 +124,13 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
     tankan_cols = []
     if tankan_df is not None and not tankan_df.empty:
         _tk = tankan_df.copy()
-        _tk.index = pd.to_datetime(_tk.index).tz_localize(None)
-        df.index = pd.to_datetime(df.index).tz_localize(None) if df.index.tz is not None else pd.to_datetime(df.index)
-        _combined_idx = _tk.index.union(df.index).sort_values()
-        tankan_aligned = _tk.reindex(_combined_idx).ffill().reindex(df.index)
+        # MonthEnd offset / tz を完全に剥がして純粋な日付に統一
+        _tk.index = pd.to_datetime(_tk.index.strftime('%Y-%m-%d'))
+        _mkt_dates = pd.to_datetime(df.index.strftime('%Y-%m-%d'))
+        _combined_idx = _tk.index.union(_mkt_dates).sort_values()
+        _tankan_tmp = _tk.reindex(_combined_idx).ffill().reindex(_mkt_dates)
+        tankan_aligned = _tankan_tmp.copy()
+        tankan_aligned.index = df.index  # df.index と対応させる（loc[idx]用）
         tankan_cols = tankan_aligned.columns.tolist()
 
     # 欠損値を前の値で補完（土日・祝日・データなし日を前営業日の値で埋める）
@@ -519,12 +522,12 @@ def generate_excel(
     combined_df = market_df.copy()
     if tankan_df is not None and not tankan_df.empty:
         _tk2 = tankan_df.copy()
-        _tk2.index = pd.to_datetime(_tk2.index).tz_localize(None)
-        _mkt_idx = pd.to_datetime(combined_df.index).tz_localize(None) if combined_df.index.tz is not None else pd.to_datetime(combined_df.index)
-        combined_df.index = _mkt_idx
-        _cidx = _tk2.index.union(combined_df.index).sort_values()
-        _tk2_aligned = _tk2.reindex(_cidx).ffill().reindex(combined_df.index)
-        combined_df = pd.concat([combined_df, _tk2_aligned], axis=1)
+        _tk2.index = pd.to_datetime(_tk2.index.strftime('%Y-%m-%d'))
+        _mkt_dates2 = pd.to_datetime(combined_df.index.strftime('%Y-%m-%d'))
+        _cidx = _tk2.index.union(_mkt_dates2).sort_values()
+        _tk2_tmp = _tk2.reindex(_cidx).ffill().reindex(_mkt_dates2)
+        _tk2_tmp.index = combined_df.index
+        combined_df = pd.concat([combined_df, _tk2_tmp], axis=1)
 
     _sheet_timeseries(wb, market_df, period, interval, cpi_df, tankan_df=tankan_df)
     _sheet_returns(wb, combined_df, interval)

@@ -135,58 +135,6 @@ def api_tankan():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.route("/api/macro")
-def api_macro():
-    """FREDマクロ指標の最新値をJSONで返す"""
-    from datetime import datetime, timedelta
-    try:
-        end   = datetime.now().strftime("%Y-%m-%d")
-        start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-        df, err = fetch_cpi_data(start_date=start, end_date=end)
-        if err:
-            return jsonify({"ok": False, "error": err})
-        result = {}
-        for col in df.columns:
-            series = df[col].dropna()
-            if len(series) > 0:
-                latest = float(series.iloc[-1])
-                prev   = float(series.iloc[-2]) if len(series) > 1 else None
-                result[col] = {
-                    "value":  round(latest, 2),
-                    "date":   series.index[-1].strftime("%Y/%m"),
-                    "change": round(latest - prev, 2) if prev is not None else None,
-                }
-        return jsonify({"ok": True, "data": result})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@app.route("/api/tankan")
-def api_tankan():
-    """日銀短観の最新値をJSONで返す"""
-    try:
-        from data_fetcher import fetch_tankan_data
-        df, err = fetch_tankan_data()
-        if err:
-            return jsonify({"ok": False, "error": err})
-        result = {}
-        for col in df.columns:
-            series = df[col].dropna()
-            if len(series) > 0:
-                latest = float(series.iloc[-1])
-                prev   = float(series.iloc[-2]) if len(series) > 1 else None
-                dt     = series.index[-1]
-                q      = (dt.month - 1) // 3 + 1
-                result[col] = {
-                    "value":  round(latest, 1),
-                    "date":   f"{dt.year}/Q{q}",
-                    "change": round(latest - prev, 1) if prev is not None else None,
-                }
-        return jsonify({"ok": True, "data": result})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))

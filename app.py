@@ -62,13 +62,15 @@ def api_download():
         if cpi_err:
             app.logger.warning(f"CPI取得スキップ: {cpi_err}")
 
-    # 短観取得（BOJ公式データ・FREDキー不要、常に取得）
+    # 短観取得（BOJ公式データ・FREDキー不要）
     tankan_df = None
-    tankan_result, tankan_err = fetch_tankan_data()
-    if tankan_err:
-        app.logger.warning(f"短観取得スキップ: {tankan_err}")
-    else:
-        tankan_df = tankan_result
+    want_tankan = body.get("include_tankan", True)
+    if want_tankan:
+        tankan_result, tankan_err = fetch_tankan_data()
+        if tankan_err:
+            app.logger.warning(f"短観取得スキップ: {tankan_err}")
+        else:
+            tankan_df = tankan_result
 
     excel_bytes = generate_excel(market_df, cpi_df, f"{start_date}〜{end_date}", interval, tankan_df=tankan_df)
 

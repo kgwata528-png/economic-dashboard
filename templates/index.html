@@ -5,349 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>経済指標ダッシュボード</title>
 <style>
-  :root {
-    --bg:       #F0F4F8;
-    --card-bg:  #FFFFFF;
-    --header:   #1A237E;
-    --accent:   #1976D2;
-    --green:    #2E7D32;
-    --red:      #C62828;
-    --gray:     #78909C;
-    --border:   #E0E0E0;
-    --shadow:   0 2px 8px rgba(0,0,0,.10);
-    --radius:   10px;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: "Meiryo UI", "Yu Gothic UI", sans-serif;
-    background: var(--bg);
-    color: #212121;
-    min-height: 100vh;
-  }
-
-  /* ── ヘッダー ── */
-  header {
-    background: var(--header);
-    color: #fff;
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 2px 6px rgba(0,0,0,.3);
-  }
-  header h1 { font-size: 1.4rem; letter-spacing: .04em; }
-  header p  { font-size: .78rem; opacity: .75; margin-top: 3px; }
-  .refresh-info { font-size: .75rem; opacity: .7; text-align: right; }
-
-  /* ── メインレイアウト ── */
-  main { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
-
-  section { margin-bottom: 32px; }
-  section h2 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--header);
-    border-left: 4px solid var(--accent);
-    padding-left: 10px;
-    margin-bottom: 14px;
-  }
-
-  /* ── 現在値グリッド ── */
-  .price-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-  }
-
-  .category-group { }
-  .category-label {
-    font-size: .72rem;
-    font-weight: 700;
-    color: var(--gray);
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin-bottom: 6px;
-    padding-left: 2px;
-  }
-  .category-cards { display: flex; flex-direction: column; gap: 8px; }
-
-  .price-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    box-shadow: var(--shadow);
-    transition: transform .15s;
-  }
-  .price-card:hover { transform: translateY(-2px); }
-
-  .price-card .name {
-    font-size: .8rem;
-    color: var(--gray);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .price-card .value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #212121;
-  }
-  .price-card .meta {
-    font-size: .75rem;
-    margin-top: 3px;
-  }
-  .up   { color: var(--green); }
-  .down { color: var(--red);   }
-  .flat { color: var(--gray);  }
-
-  .loading-text { color: var(--gray); font-size: .85rem; padding: 8px 0; }
-
-  /* ── ダウンロードパネル ── */
-  .dl-panel {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 24px 28px;
-  }
-
-  .dl-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 20px;
-  }
-  @media(max-width:700px) { .dl-grid { grid-template-columns: 1fr; } }
-
-  .dl-section-title {
-    font-size: .8rem;
-    font-weight: 700;
-    color: var(--gray);
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-
-  /* 指標チェックボックス */
-  .indicator-groups { display: flex; flex-direction: column; gap: 14px; }
-  .indicator-group  { }
-  .group-name {
-    font-size: .78rem;
-    font-weight: 700;
-    color: #455A64;
-    margin-bottom: 6px;
-  }
-  .indicator-checks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .indicator-checks label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: #F5F5F5;
-    border: 1px solid #E0E0E0;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: .8rem;
-    cursor: pointer;
-    transition: background .12s, border-color .12s;
-    user-select: none;
-  }
-  .data-from {
-    font-size: .68rem;
-    color: #90A4AE;
-    margin-left: 2px;
-    font-weight: 400;
-  }
-  .indicator-checks label:hover,
-  .indicator-checks input:checked + span { }
-  .indicator-checks input:checked ~ * { font-weight: 600; }
-  .indicator-checks label:has(input:checked) {
-    background: #E3F2FD;
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .check-all-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .btn-sm {
-    font-size: .75rem;
-    padding: 3px 10px;
-    border-radius: 5px;
-    border: 1px solid #B0BEC5;
-    background: #ECEFF1;
-    cursor: pointer;
-    color: #37474F;
-    transition: background .12s;
-  }
-  .btn-sm:hover { background: #CFD8DC; }
-
-  /* セレクター */
-  .selector-group { display: flex; flex-direction: column; gap: 16px; }
-  .selector-row label {
-    display: block;
-    font-size: .8rem;
-    font-weight: 700;
-    color: #455A64;
-    margin-bottom: 6px;
-  }
-  .radio-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .radio-group input[type=radio] { display: none; }
-  .radio-group label {
-    padding: 5px 14px;
-    border-radius: 20px;
-    border: 1px solid #CFD8DC;
-    background: #F5F5F5;
-    font-size: .82rem;
-    cursor: pointer;
-    transition: all .12s;
-    color: #455A64;
-  }
-  .radio-group input[type=radio]:checked + label {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 700;
-  }
-  .period-btn {
-    padding: 5px 14px;
-    border-radius: 20px;
-    border: 1px solid #CFD8DC;
-    background: #F5F5F5;
-    font-size: .82rem;
-    cursor: pointer;
-    transition: all .12s;
-    color: #455A64;
-  }
-  .period-btn.active, .period-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 700;
-  }
-
-  .cpi-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: .85rem;
-    color: #455A64;
-    margin-top: 8px;
-  }
-  .cpi-toggle input { width: 16px; height: 16px; cursor: pointer; }
-
-  /* ダウンロードボタン */
-  .dl-footer {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-  }
-  .btn-download {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 28px;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-    letter-spacing: .03em;
-  }
-  .btn-download:hover   { background: #1565C0; transform: translateY(-1px); }
-  .btn-download:active  { transform: translateY(0); }
-  .btn-download:disabled { background: #90A4AE; cursor: not-allowed; transform: none; }
-  .btn-cancel {
-    background: #e53935;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 20px;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  .btn-cancel:hover { background: #b71c1c; }
-
-  .dl-status {
-    font-size: .85rem;
-    color: var(--gray);
-  }
-  .dl-status.loading { color: var(--accent); }
-  .dl-status.error   { color: var(--red);   }
-  .dl-status.success { color: var(--green); }
-
-  /* プログレスバー */
-  .progress-bar {
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 10px;
-    display: none;
-  }
-  .progress-bar.active { display: block; }
-  .progress-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    width: 0%;
-    transition: width .3s;
-    animation: progress-anim 2s infinite;
-  }
-  @keyframes progress-anim {
-    0%   { width: 10%; }
-    50%  { width: 80%; }
-    100% { width: 10%; }
-  }
-
-  /* Excel出力内容プレビュー */
-  .sheet-info {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 12px;
-  }
-  .sheet-badge {
-    font-size: .72rem;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-  .sheet-badge.s1 { background: #E3F2FD; color: #1565C0; }
-  .sheet-badge.s2 { background: #E8F5E9; color: #2E7D32; }
-  .sheet-badge.s3 { background: #FFF3E0; color: #E65100; }
-  .sheet-badge.s4 { background: #F3E5F5; color: #6A1B9A; }
-  .sheet-badge.s5 { background: #FFEBEE; color: #C62828; }
-
-  footer {
-    text-align: center;
-    font-size: .75rem;
-    color: #B0BEC5;
-    padding: 16px;
-    border-top: 1px solid var(--border);
-  }
+:root {
+  --bg: #F0F4F8; --card-bg: #FFFFFF; --header: #1A237E; --accent: #1976D2;
+  --green: #2E7D32; --red: #C62828; --gray: #78909C; --border: #E0E0E0;
+  --shadow: 0 2px 8px rgba(0,0,0,.10); --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Meiryo UI", "Yu Gothic UI", sans-serif; background: var(--bg); color: #212121; min-height: 100vh; }
+header { background: var(--header); color: #fff; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+header h1 { font-size: 1.4rem; letter-spacing: .04em; }
+header p { font-size: .78rem; opacity: .75; margin-top: 3px; }
+.refresh-info { font-size: .75rem; opacity: .7; text-align: right; }
+main { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
+section { margin-bottom: 32px; }
+section h2 { font-size: 1.05rem; font-weight: 700; color: var(--header); border-left: 4px solid var(--accent); padding-left: 10px; margin-bottom: 14px; }
+.price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.category-group { }
+.category-label { font-size: .72rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; padding-left: 2px; }
+.category-cards { display: flex; flex-direction: column; gap: 8px; }
+.price-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); transition: transform .15s; }
+.price-card:hover { transform: translateY(-2px); }
+.price-card .name { font-size: .8rem; color: var(--gray); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.price-card .value { font-size: 1.25rem; font-weight: 700; color: #212121; }
+.price-card .meta { font-size: .75rem; margin-top: 3px; }
+.up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--gray); }
+.loading-text { color: var(--gray); font-size: .85rem; padding: 8px 0; }
+.dl-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px 28px; }
+.dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+@media(max-width:700px) { .dl-grid { grid-template-columns: 1fr; } }
+.dl-section-title { font-size: .8rem; font-weight: 700; color: var(--gray); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
+.indicator-groups { display: flex; flex-direction: column; gap: 14px; }
+.indicator-group { }
+.group-name { font-size: .78rem; font-weight: 700; color: #455A64; margin-bottom: 6px; }
+.indicator-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.indicator-checks label { display: flex; align-items: center; gap: 5px; background: #F5F5F5; border: 1px solid #E0E0E0; border-radius: 6px; padding: 4px 10px; font-size: .8rem; cursor: pointer; transition: background .12s, border-color .12s; user-select: none; }
+.data-from { font-size: .68rem; color: #90A4AE; margin-left: 2px; font-weight: 400; }
+.indicator-checks label:has(input:checked) { background: #E3F2FD; border-color: var(--accent); color: var(--accent); }
+.check-all-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.btn-sm { font-size: .75rem; padding: 3px 10px; border-radius: 5px; border: 1px solid #B0BEC5; background: #ECEFF1; cursor: pointer; color: #37474F; transition: background .12s; }
+.btn-sm:hover { background: #CFD8DC; }
+.selector-group { display: flex; flex-direction: column; gap: 16px; }
+.selector-row label { display: block; font-size: .8rem; font-weight: 700; color: #455A64; margin-bottom: 6px; }
+.radio-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.radio-group input[type=radio] { display: none; }
+.radio-group label { padding: 5px 14px; border-radius: 20px; border: 1px solid #CFD8DC; background: #F5F5F5; font-size: .82rem; cursor: pointer; transition: all .12s; color: #455A64; }
+.radio-group input[type=radio]:checked + label { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.period-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid #CFD8DC; background: #F5F5F5; font-size: .82rem; cursor: pointer; transition: all .12s; color: #455A64; }
+.period-btn.active, .period-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.cpi-toggle { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: #455A64; margin-top: 8px; }
+.cpi-toggle input { width: 16px; height: 16px; cursor: pointer; }
+.dl-footer { display: flex; align-items: center; gap: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.btn-download { display: flex; align-items: center; gap: 8px; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 11px 28px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .15s, transform .1s; letter-spacing: .03em; }
+.btn-download:hover { background: #1565C0; transform: translateY(-1px); }
+.btn-download:active { transform: translateY(0); }
+.btn-download:disabled { background: #90A4AE; cursor: not-allowed; transform: none; }
+.btn-cancel { background: #e53935; color: #fff; border: none; border-radius: 8px; padding: 11px 20px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+.btn-cancel:hover { background: #b71c1c; }
+.dl-status { font-size: .85rem; color: var(--gray); }
+.dl-status.loading { color: var(--accent); }
+.dl-status.error { color: var(--red); }
+.dl-status.success { color: var(--green); }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 10px; display: none; }
+.progress-bar.active { display: block; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width .3s; animation: progress-anim 2s infinite; }
+@keyframes progress-anim { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 10%; } }
+.sheet-info { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.sheet-badge { font-size: .72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.sheet-badge.s1 { background: #E3F2FD; color: #1565C0; }
+.sheet-badge.s2 { background: #E8F5E9; color: #2E7D32; }
+.sheet-badge.s3 { background: #FFF3E0; color: #E65100; }
+.sheet-badge.s4 { background: #F3E5F5; color: #6A1B9A; }
+.sheet-badge.s5 { background: #FFEBEE; color: #C62828; }
+footer { text-align: center; font-size: .75rem; color: #B0BEC5; padding: 16px; border-top: 1px solid var(--border); }
 </style>
 </head>
 <body>
-
 <header>
   <div>
     <h1>📊 経済指標ダッシュボード</h1>
@@ -355,13 +87,27 @@
   </div>
   <div class="refresh-info" id="lastUpdated">読み込み中...</div>
 </header>
-
 <main>
-
   <!-- ── 現在値 ── -->
   <section>
     <h2>現在値（前日比）</h2>
     <div class="price-grid" id="priceGrid">
+      <p class="loading-text">データ取得中...</p>
+    </div>
+  </section>
+
+  <!-- ── マクロ経済指標（FRED） ── -->
+  <section id="macroSection">
+    <h2>マクロ経済指標（FRED）</h2>
+    <div class="price-grid" id="macroGrid">
+      <p class="loading-text">データ取得中...</p>
+    </div>
+  </section>
+
+  <!-- ── 日銀短観 ── -->
+  <section id="tankanSection">
+    <h2>日銀短観（業況判断DI）</h2>
+    <div class="price-grid" id="tankanGrid">
       <p class="loading-text">データ取得中...</p>
     </div>
   </section>
@@ -371,7 +117,6 @@
     <h2>Excel ダウンロード</h2>
     <div class="dl-panel">
       <div class="dl-grid">
-
         <!-- 指標選択 -->
         <div>
           <div class="dl-section-title">指標を選択</div>
@@ -394,18 +139,15 @@
             </div>
             {% endfor %}
           </div>
-
           <label class="cpi-toggle" style="margin-top:14px;">
             <input type="checkbox" id="includeCpi" checked>
-            <span>マクロ経済指標（CPI・失業率・NFP・GDP）を含める</span>
+            <span>マクロ経済指標（CPI・失業率・NFP・GDP等）を含める</span>
             <span style="font-size:.72rem;color:#90A4AE;">※ FREDキーが必要</span>
           </label>
         </div>
-
         <!-- 期間・足種設定 -->
         <div>
           <div class="selector-group">
-
             <div class="selector-row">
               <label>期間</label>
               <div class="radio-group" id="periodShortcuts">
@@ -426,16 +168,14 @@
                 💡 先に終了日を設定してから、上のボタンで期間を指定してください
               </div>
             </div>
-
             <div class="selector-row">
               <label>足種（時間軸）</label>
               <div class="radio-group">
-                <input type="radio" name="interval" id="i1d"  value="1d" checked><label for="i1d">日足</label>
+                <input type="radio" name="interval" id="i1d" value="1d" checked><label for="i1d">日足</label>
                 <input type="radio" name="interval" id="i1wk" value="1wk"><label for="i1wk">週足</label>
                 <input type="radio" name="interval" id="i1mo" value="1mo"><label for="i1mo">月足</label>
               </div>
             </div>
-
             <div>
               <div class="dl-section-title" style="margin-bottom:6px;">出力シート</div>
               <div class="sheet-info">
@@ -446,12 +186,9 @@
                 <span class="sheet-badge s5">⑤ マクロ経済指標（FRED）</span>
               </div>
             </div>
-
           </div>
         </div>
-
       </div><!-- /.dl-grid -->
-
       <div class="dl-footer">
         <button class="btn-download" id="dlBtn" onclick="downloadExcel()">
           ⬇ Excel ダウンロード
@@ -466,7 +203,6 @@
       </div>
     </div><!-- /.dl-panel -->
   </section>
-
 </main>
 
 <footer>
@@ -479,208 +215,225 @@
 </footer>
 
 <script>
-// ====================================================
-// 現在値の取得・表示
-// ====================================================
-async function fetchCurrentPrices() {
-  try {
-    const res  = await fetch("/api/current");
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error);
-    renderPrices(json.data);
-    document.getElementById("lastUpdated").textContent =
-      "最終更新: " + new Date().toLocaleTimeString("ja-JP");
-  } catch (e) {
-    document.getElementById("priceGrid").innerHTML =
-      `<p style="color:#C62828;">データ取得エラー: ${e.message}</p>`;
+  // ====================================================
+  // 現在値の取得・表示
+  // ====================================================
+  async function fetchCurrentPrices() {
+    try {
+      const res = await fetch("/api/current");
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      renderPrices(json.data);
+      document.getElementById("lastUpdated").textContent = "最終更新: " + new Date().toLocaleTimeString("ja-JP");
+    } catch (e) {
+      document.getElementById("priceGrid").innerHTML = `<p style="color:#C62828;">データ取得エラー: ${e.message}</p>`;
+    }
   }
-}
 
-function renderPrices(data) {
-  const grid = document.getElementById("priceGrid");
-  grid.innerHTML = "";
+  function renderPrices(data) {
+    const grid = document.getElementById("priceGrid");
+    grid.innerHTML = "";
+    for (const [catName, items] of Object.entries(data)) {
+      const group = document.createElement("div");
+      group.className = "category-group";
+      const label = document.createElement("div");
+      label.className = "category-label";
+      label.textContent = catName;
+      group.appendChild(label);
+      const cards = document.createElement("div");
+      cards.className = "category-cards";
+      for (const [name, info] of Object.entries(items)) {
+        const card = document.createElement("div");
+        card.className = "price-card";
+        const val = info.value;
+        const chg = info.change;
+        const chgPct = info.change_pct;
+        const unit = info.unit;
+        let valStr = val !== null ? val.toLocaleString("ja-JP", { maximumFractionDigits: 4 }) : "―";
+        let metaStr = "―";
+        let cls = "flat";
+        if (chg !== null && chgPct !== null) {
+          const sign = chg > 0 ? "▲" : (chg < 0 ? "▼" : "");
+          cls = chg > 0 ? "up" : (chg < 0 ? "down" : "flat");
+          const absChg = Math.abs(chg).toFixed(4);
+          const absChgPct = Math.abs(chgPct).toFixed(2);
+          metaStr = `${sign} ${absChg} (${sign}${absChgPct}%)`;
+        }
+        card.innerHTML = `
+          <div class="name">${name}</div>
+          <div class="value">${valStr} <span style="font-size:.7rem;font-weight:400;color:#78909C;">${unit}</span></div>
+          <div class="meta ${cls}">${metaStr}</div>
+        `;
+        cards.appendChild(card);
+      }
+      group.appendChild(cards);
+      grid.appendChild(group);
+    }
+  }
 
-  for (const [catName, items] of Object.entries(data)) {
-    const group = document.createElement("div");
-    group.className = "category-group";
+  // 60秒ごとに自動更新
+  fetchCurrentPrices();
+  setInterval(fetchCurrentPrices, 60000);
 
-    const label = document.createElement("div");
-    label.className = "category-label";
-    label.textContent = catName;
-    group.appendChild(label);
+  // ====================================================
+  // マクロ経済指標（FRED）の取得・表示
+  // ====================================================
+  async function fetchMacroData() {
+    try {
+      const res = await fetch("/api/macro");
+      const json = await res.json();
+      const grid = document.getElementById("macroGrid");
+      if (!json.ok) {
+        grid.innerHTML = `<p class="loading-text" style="color:#E65100;">⚠️ ${json.error}</p>`;
+        return;
+      }
+      renderMacroCards(grid, json.data, "%");
+    } catch (e) {
+      document.getElementById("macroGrid").innerHTML =
+        `<p style="color:#C62828;">取得エラー: ${e.message}</p>`;
+    }
+  }
 
-    const cards = document.createElement("div");
-    cards.className = "category-cards";
+  // ====================================================
+  // 日銀短観の取得・表示
+  // ====================================================
+  async function fetchTankanData() {
+    try {
+      const res = await fetch("/api/tankan");
+      const json = await res.json();
+      const grid = document.getElementById("tankanGrid");
+      if (!json.ok) {
+        grid.innerHTML = `<p class="loading-text" style="color:#E65100;">⚠️ ${json.error}</p>`;
+        return;
+      }
+      renderMacroCards(grid, json.data, "pt");
+    } catch (e) {
+      document.getElementById("tankanGrid").innerHTML =
+        `<p style="color:#C62828;">取得エラー: ${e.message}</p>`;
+    }
+  }
 
-    for (const [name, info] of Object.entries(items)) {
+  // マクロ系カード共通レンダラー
+  function renderMacroCards(grid, data, defaultUnit) {
+    grid.innerHTML = "";
+    const entries = Object.entries(data);
+    if (entries.length === 0) {
+      grid.innerHTML = `<p class="loading-text">データなし</p>`;
+      return;
+    }
+    for (const [name, info] of entries) {
+      const chg  = info.change;
+      const cls  = chg === null ? "flat" : (chg > 0 ? "up" : (chg < 0 ? "down" : "flat"));
+      const sign = chg === null ? "" : (chg > 0 ? "▲" : (chg < 0 ? "▼" : ""));
+      const chgStr = chg !== null ? `${sign} ${Math.abs(chg)}` : "―";
       const card = document.createElement("div");
       card.className = "price-card";
-
-      const val     = info.value;
-      const chg     = info.change;
-      const chgPct  = info.change_pct;
-      const unit    = info.unit;
-
-      let valStr = val !== null ? val.toLocaleString("ja-JP", { maximumFractionDigits: 4 }) : "―";
-      let metaStr = "―";
-      let cls = "flat";
-
-      if (chg !== null && chgPct !== null) {
-        const sign = chg > 0 ? "▲" : (chg < 0 ? "▼" : "");
-        cls = chg > 0 ? "up" : (chg < 0 ? "down" : "flat");
-        const absChg    = Math.abs(chg).toFixed(4);
-        const absChgPct = Math.abs(chgPct).toFixed(2);
-        metaStr = `${sign} ${absChg} (${sign}${absChgPct}%)`;
-      }
-
       card.innerHTML = `
         <div class="name">${name}</div>
-        <div class="value">${valStr} <span style="font-size:.7rem;font-weight:400;color:#78909C;">${unit}</span></div>
-        <div class="meta ${cls}">${metaStr}</div>
+        <div class="value">${info.value} <span style="font-size:.7rem;font-weight:400;color:#78909C;">${defaultUnit}</span></div>
+        <div class="meta ${cls}">${chgStr}&nbsp;&nbsp;<span style="color:#90A4AE;font-size:.72rem;">${info.date}</span></div>
       `;
-      cards.appendChild(card);
+      grid.appendChild(card);
     }
-    group.appendChild(cards);
-    grid.appendChild(group);
-  }
-}
-
-// 60秒ごとに自動更新
-fetchCurrentPrices();
-setInterval(fetchCurrentPrices, 60000);
-
-
-// ====================================================
-// チェックボックス全選択/解除
-// ====================================================
-function checkAll(checked) {
-  document.querySelectorAll('input[name="indicator"]').forEach(cb => cb.checked = checked);
-}
-
-
-// ====================================================
-// Excel ダウンロード
-// ====================================================
-let _abortController = null;
-
-function cancelDownload() {
-  if (_abortController) {
-    _abortController.abort();
-    _abortController = null;
-  }
-}
-
-async function downloadExcel() {
-  const selected = [...document.querySelectorAll('input[name="indicator"]:checked')]
-    .map(cb => cb.value);
-
-  if (selected.length === 0) {
-    setStatus("error", "指標を1つ以上選択してください");
-    return;
   }
 
-  const startDate  = document.getElementById("startDate").value;
-  const endDate    = document.getElementById("endDate").value;
-  const interval   = document.querySelector('input[name="interval"]:checked').value;
-  const includeCpi = document.getElementById("includeCpi").checked;
+  // 初回ロード（マクロ・短観は非同期で並行取得）
+  fetchMacroData();
+  fetchTankanData();
 
-  if (!startDate || !endDate) {
-    setStatus("error", "開始日・終了日を指定してください");
-    return;
+  // ====================================================
+  // チェックボックス全選択/解除
+  // ====================================================
+  function checkAll(checked) {
+    document.querySelectorAll('input[name="indicator"]').forEach(cb => cb.checked = checked);
   }
 
-  const btn       = document.getElementById("dlBtn");
-  const cancelBtn = document.getElementById("cancelBtn");
-  btn.disabled    = true;
-  cancelBtn.style.display = "inline-block";
-  setStatus("loading", "データ取得中... しばらくお待ちください");
-  document.getElementById("progressBar").classList.add("active");
+  // ====================================================
+  // Excel ダウンロード
+  // ====================================================
+  let _abortController = null;
+  function cancelDownload() {
+    if (_abortController) { _abortController.abort(); _abortController = null; }
+  }
 
-  _abortController = new AbortController();
+  async function downloadExcel() {
+    const selected = [...document.querySelectorAll('input[name="indicator"]:checked')]
+      .map(cb => cb.value);
+    if (selected.length === 0) { setStatus("error", "指標を1つ以上選択してください"); return; }
+    const startDate  = document.getElementById("startDate").value;
+    const endDate    = document.getElementById("endDate").value;
+    const interval   = document.querySelector('input[name="interval"]:checked').value;
+    const includeCpi = document.getElementById("includeCpi").checked;
+    if (!startDate || !endDate) { setStatus("error", "開始日・終了日を指定してください"); return; }
+    const btn = document.getElementById("dlBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+    btn.disabled = true;
+    cancelBtn.style.display = "inline-block";
+    setStatus("loading", "データ取得中... しばらくお待ちください");
+    document.getElementById("progressBar").classList.add("active");
+    _abortController = new AbortController();
+    try {
+      const res = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selected, start_date: startDate, end_date: endDate, interval, include_cpi: includeCpi }),
+        signal: _abortController.signal,
+      });
+      if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const filename = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/)?.[1] || "econ_data.xlsx";
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus("success", `✅ ダウンロード完了（${selected.length}指標）`);
+    } catch (e) {
+      if (e.name === "AbortError") { setStatus("error", "⛔ キャンセルしました"); }
+      else { setStatus("error", `❌ エラー: ${e.message}`); }
+    } finally {
+      btn.disabled = false;
+      cancelBtn.style.display = "none";
+      _abortController = null;
+      document.getElementById("progressBar").classList.remove("active");
+    }
+  }
 
-  try {
-    const res = await fetch("/api/download", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ selected, start_date: startDate, end_date: endDate, interval, include_cpi: includeCpi }),
-      signal:  _abortController.signal,
+  function setStatus(cls, msg) {
+    const el = document.getElementById("dlStatus");
+    el.className = "dl-status " + cls;
+    el.textContent = msg;
+  }
+
+  // ====================================================
+  // 日付ユーティリティ
+  // ====================================================
+  function toDateStr(d) { return d.toISOString().split("T")[0]; }
+  function setDateRange(startDate, endDate) {
+    document.getElementById("startDate").value = toDateStr(startDate);
+    document.getElementById("endDate").value   = toDateStr(endDate);
+  }
+
+  document.querySelectorAll(".period-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const endVal = document.getElementById("endDate").value;
+      const end = endVal ? new Date(endVal) : new Date();
+      let start = new Date(end);
+      if (btn.dataset.max) { start = new Date("1927-01-01"); }
+      else if (btn.dataset.years) { start.setFullYear(start.getFullYear() - parseInt(btn.dataset.years)); }
+      else if (btn.dataset.months) { start.setMonth(start.getMonth() - parseInt(btn.dataset.months)); }
+      document.getElementById("startDate").value = toDateStr(start);
     });
-
-    if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
-
-    const blob     = await res.blob();
-    const url      = URL.createObjectURL(blob);
-    const a        = document.createElement("a");
-    const filename = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/)?.[1]
-                     || "econ_data.xlsx";
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setStatus("success", `✅ ダウンロード完了（${selected.length}指標）`);
-  } catch (e) {
-    if (e.name === "AbortError") {
-      setStatus("error", "⛔ キャンセルしました");
-    } else {
-      setStatus("error", `❌ エラー: ${e.message}`);
-    }
-  } finally {
-    btn.disabled = false;
-    cancelBtn.style.display = "none";
-    _abortController = null;
-    document.getElementById("progressBar").classList.remove("active");
-  }
-}
-
-function setStatus(cls, msg) {
-  const el = document.getElementById("dlStatus");
-  el.className = "dl-status " + cls;
-  el.textContent = msg;
-}
-
-// ====================================================
-// 日付ユーティリティ
-// ====================================================
-function toDateStr(d) {
-  return d.toISOString().split("T")[0];
-}
-
-function setDateRange(startDate, endDate) {
-  document.getElementById("startDate").value = toDateStr(startDate);
-  document.getElementById("endDate").value   = toDateStr(endDate);
-}
-
-// ショートカットボタン（終了日は変えず、開始日だけ変更）
-document.querySelectorAll(".period-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // 終了日は現在の値を保持（未設定なら今日）
-    const endVal = document.getElementById("endDate").value;
-    const end    = endVal ? new Date(endVal) : new Date();
-    let start    = new Date(end);
-
-    if (btn.dataset.max) {
-      start = new Date("1927-01-01");
-    } else if (btn.dataset.years) {
-      start.setFullYear(start.getFullYear() - parseInt(btn.dataset.years));
-    } else if (btn.dataset.months) {
-      start.setMonth(start.getMonth() - parseInt(btn.dataset.months));
-    }
-    document.getElementById("startDate").value = toDateStr(start);
-    // 終了日は変更しない
   });
-});
 
-// 初期値：1年前〜今日
-(function initDates() {
-  const today = new Date();
-  const start = new Date(today);
-  start.setFullYear(start.getFullYear() - 1);
-  setDateRange(start, today);
-})();
+  (function initDates() {
+    const today = new Date();
+    const start = new Date(today);
+    start.setFullYear(start.getFullYear() - 1);
+    setDateRange(start, today);
+  })();
 </script>
 </body>
 </html>

@@ -427,6 +427,47 @@ def _sheet_cpi(wb: Workbook, cpi_df: pd.DataFrame):
         )
 
 
+def _sheet_tankan(wb: Workbook, tankan_df: pd.DataFrame):
+    """日銀短観シート"""
+    ws = wb.create_sheet("日銀短観（業況判断DI）")
+    ws.sheet_view.showGridLines = False
+    cols = tankan_df.columns.tolist()
+    n_cols = len(cols) + 1
+
+    _title_row(ws, 1, n_cols,
+               "日銀短観（業況判断DI）",
+               bg=C["header_dark"])
+    _note_row(ws, 2, n_cols,
+              "出典: 日本銀行 短観（全国企業短期経済観測調査）／四半期データ"
+              "　※DI＝「良い」－「悪い」（%ポイント）、プラスは景況改善を示す")
+
+    _write_header(ws.cell(row=3, column=1), "四半期", bg=C["header_dark"])
+    for ci, col in enumerate(cols, 2):
+        _write_header(ws.cell(row=3, column=ci), col, bg=C["header_dark"])
+    ws.row_dimensions[3].height = 28
+
+    for ri, (idx, row) in enumerate(tankan_df.iterrows(), 4):
+        bg = C["light_gray"] if ri % 2 == 0 else C["white"]
+        q = (idx.month - 1) // 3 + 1
+        dt_str = f"{idx.year}/Q{q}"
+        _write_data(ws.cell(row=ri, column=1), dt_str, bg=bg)
+        for ci, col in enumerate(cols, 2):
+            val = row[col]
+            if pd.isna(val):
+                _write_data(ws.cell(row=ri, column=ci), "\u2015", bg=bg)
+            else:
+                fval = round(float(val), 1)
+                color = "2E7D32" if fval > 0 else ("C62828" if fval < 0 else "000000")
+                _write_data(ws.cell(row=ri, column=ci), fval,
+                            bg=bg, num_fmt="+0.0;-0.0;0.0", color=color)
+        ws.row_dimensions[ri].height = 18
+
+    ws.column_dimensions["A"].width = 12
+    for ci in range(2, n_cols + 1):
+        ws.column_dimensions[get_column_letter(ci)].width = 24
+
+
+
 # ====================================================
 # メイン生成関数
 # ====================================================
@@ -435,6 +476,7 @@ def generate_excel(
     cpi_df: pd.DataFrame | None,
     period: str,
     interval: str,
+    tankan_df: pd.DataFrame | None = None,
 ) -> bytes:
     """Excel ファイルをバイト列で返す"""
     wb = Workbook()
@@ -456,6 +498,9 @@ def generate_excel(
 
     if cpi_df is not None and not cpi_df.empty:
         _sheet_cpi(wb, cpi_df)
+
+    if tankan_df is not None and not tankan_df.empty:
+        _sheet_tankan(wb, tankan_df)
 
     buf = io.BytesIO()
     wb.save(buf)

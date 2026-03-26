@@ -17,6 +17,7 @@ from data_fetcher import (
     get_current_prices,
     fetch_market_data,
     fetch_cpi_data,
+    fetch_tankan_data,
     INDICATORS,
     TICKER_MAP,
 )
@@ -61,7 +62,16 @@ def api_download():
         if cpi_err:
             app.logger.warning(f"CPI取得スキップ: {cpi_err}")
 
-    excel_bytes = generate_excel(market_df, cpi_df, f"{start_date}〜{end_date}", interval)
+    # 短観取得
+    tankan_df = None
+    if want_cpi:
+        tankan_result, tankan_err = fetch_tankan_data()
+        if tankan_err:
+            app.logger.warning(f"短観取得スキップ: {tankan_err}")
+        else:
+            tankan_df = tankan_result
+
+    excel_bytes = generate_excel(market_df, cpi_df, f"{start_date}〜{end_date}", interval, tankan_df=tankan_df)
 
     interval_label = {"1d": "daily", "1wk": "weekly", "1mo": "monthly"}.get(interval, interval)
     s = (start_date or "").replace("-", "")[2:]  # 250101

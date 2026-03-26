@@ -145,6 +145,11 @@ footer { text-align: center; font-size: .75rem; color: #B0BEC5; padding: 16px; b
             <span>マクロ経済指標（CPI・失業率・NFP・GDP等）を含める</span>
             <span style="font-size:.72rem;color:#90A4AE;">※ FREDキーが必要</span>
           </label>
+                <label class="cpi-toggle" style="margin-top:8px;">
+                    <input type="checkbox" id="includeTankan" checked>
+                    <span>日銀短観（業況判断DI）を含める</span>
+                    <span style="font-size:.72rem;color:#90A4AE;">※ FREDキー不要</span>
+                </label>
         </div>
         <!-- 期間・足種設定 -->
         <div>
@@ -366,6 +371,7 @@ footer { text-align: center; font-size: .75rem; color: #B0BEC5; padding: 16px; b
     const endDate    = document.getElementById("endDate").value;
     const interval   = document.querySelector('input[name="interval"]:checked').value;
     const includeCpi = document.getElementById("includeCpi").checked;
+        const includeTankan = document.getElementById("includeTankan").checked;
     if (!startDate || !endDate) { setStatus("error", "開始日・終了日を指定してください"); return; }
     const btn = document.getElementById("dlBtn");
     const cancelBtn = document.getElementById("cancelBtn");
@@ -378,7 +384,7 @@ footer { text-align: center; font-size: .75rem; color: #B0BEC5; padding: 16px; b
       const res = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selected, start_date: startDate, end_date: endDate, interval, include_cpi: includeCpi }),
+        body: JSON.stringify({ selected, start_date: startDate, end_date: endDate, interval, include_cpi: includeCpi, include_tankan: includeTankan }),
         signal: _abortController.signal,
       });
       if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);

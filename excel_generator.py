@@ -25,6 +25,7 @@ C = {
     "header_red":   "B71C1C",  # 赤
     "header_orange":"E65100",  # オレンジ
     "header_purple":"4A148C",  # 紫
+    "header_indigo":"283593",  # インディゴ（短観）
     "white":        "FFFFFF",
     "light_blue":   "E3F2FD",
     "light_gray":   "F5F5F5",
@@ -101,7 +102,8 @@ def _note_row(ws, row, col_span, text):
 # シート1: 時系列データ
 # ====================================================
 def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str,
-                      cpi_df: pd.DataFrame | None = None):
+                      cpi_df: pd.DataFrame | None = None,
+                      tankan_df: pd.DataFrame | None = None):
     ws = wb.active
     ws.title = "時系列データ"
     ws.sheet_properties.tabColor = C["header_mid"]
@@ -117,11 +119,22 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
         cpi_aligned = cpi_df.reindex(combined_idx).ffill().reindex(df.index)
         cpi_cols = cpi_aligned.columns.tolist()
 
+    # 短観データを市場データの日付に合わせてforward-fill（四半期データを日次/週次/月次に展開）
+    tankan_aligned = None
+    tankan_cols = []
+    if tankan_df is not None and not tankan_df.empty:
+        _tk = tankan_df.copy()
+        _tk.index = pd.to_datetime(_tk.index).tz_localize(None)
+        df.index = pd.to_datetime(df.index).tz_localize(None) if df.index.tz is not None else pd.to_datetime(df.index)
+        _combined_idx = _tk.index.union(df.index).sort_values()
+        tankan_aligned = _tk.reindex(_combined_idx).ffill().reindex(df.index)
+        tankan_cols = tankan_aligned.columns.tolist()
+
     # 欠損値を前の値で補完（土日・祝日・データなし日を前営業日の値で埋める）
     df = df.ffill()
 
     cols = df.columns.tolist()
-    n_cols = len(cols) + len(cpi_cols) + 1  # +1 for date
+    n_cols = len(cols) + len(cpi_cols) + len(tankan_cols) + 1  # +1 for date
 
     period_str   = PERIOD_LABEL.get(period, period)
     interval_str = INTERVAL_LABEL.get(interval, interval)
@@ -145,6 +158,10 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
     cpi_start_col = len(cols) + 2
     for ci, col in enumerate(cpi_cols, cpi_start_col):
         _write_header(ws.cell(row=3, column=ci), col, bg=C["header_green"])
+    # 短観ヘッダー（インディゴ色で区別）
+    tankan_start_col = len(cols) + len(cpi_cols) + 2
+    for ci, col in enumerate(tankan_cols, tankan_start_col):
+        _write_header(ws.cell(row=3, column=ci), col, bg=C["header_indigo"])
     ws.row_dimensions[3].height = 24
 
     # データ行
@@ -171,6 +188,15 @@ def _sheet_timeseries(wb: Workbook, df: pd.DataFrame, period: str, interval: str
                     _write_data(ws.cell(row=ri, column=ci), round(float(val), 2),
                                 bg=bg, num_fmt="#,##0.00")
 
+        # 短観データ列
+        if tankan_aligned is not None:
+            for ci, col in enumerate(tankan_cols, tankan_start_col):
+                val = tankan_aligned.loc[idx, col] if idx in tankan_aligned.index else None
+                if val is None or (hasattr(val, "__float__") and pd.isna(val)):
+                    _write_data(ws.cell(row=ri, column=ci), "―", bg=bg)
+                else:
+                    _write_data(ws.cell(row=ri, column=ci), round(float(val), 1),
+                                bg=bg, num_fmt="#,##0.0")
         ws.row_dimensions[ri].height = 17
 
     # 列幅
@@ -489,12 +515,23 @@ def generate_excel(
         wb.save(buf)
         return buf.getvalue()
 
-    _sheet_timeseries(wb, market_df, period, interval, cpi_df)
-    _sheet_returns(wb, market_df, interval)
-    _sheet_stats(wb, market_df, period, interval)
+    # 短観データをmarket_dfに結合してcombined_dfを作成（①③④内の相連分析に使用）
+    combined_df = market_df.copy()
+    if tankan_df is not None and not tankan_df.empty:
+        _tk2 = tankan_df.copy()
+        _tk2.index = pd.to_datetime(_tk2.index).tz_localize(None)
+        _mkt_idx = pd.to_datetime(combined_df.index).tz_localize(None) if combined_df.index.tz is not None else pd.to_datetime(combined_df.index)
+        combined_df.index = _mkt_idx
+        _cidx = _tk2.index.union(combined_df.index).sort_values()
+        _tk2_aligned = _tk2.reindex(_cidx).ffill().reindex(combined_df.index)
+        combined_df = pd.concat([combined_df, _tk2_aligned], axis=1)
 
-    if len(market_df.columns) > 1:
-        _sheet_correlation(wb, market_df)
+    _sheet_timeseries(wb, market_df, period, interval, cpi_df, tankan_df=tankan_df)
+    _sheet_returns(wb, combined_df, interval)
+    _sheet_stats(wb, combined_df, period, interval)
+
+    if len(combined_df.columns) > 1:
+        _sheet_correlation(wb, combined_df)
 
     if cpi_df is not None and not cpi_df.empty:
         _sheet_cpi(wb, cpi_df)
